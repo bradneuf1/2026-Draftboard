@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0e1f17">
+<title>2026 Fantasy Draft Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #0e1f17;
+    --panel: #0f2318;
+    --line: #2a4536;
+    --line-soft: #1c3527;
+    --gold: #d4a24c;
+    --text: #eef3ee;
+    --muted: #9bb3a3;
+    --dim: #6d8878;
+    --green: #6fbf8a;
+    --red: #d9695f;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    background-image: repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 64px);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    padding: 16px 14px 60px;
+  }
+  .shell { max-width: 1280px; margin: 0 auto; }
+  header { border-bottom: 2px solid var(--gold); padding-bottom: 12px; margin-bottom: 14px;
+           display:flex; align-items:flex-start; gap:10px; }
+  .eyebrow { font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--gold); margin-bottom: 5px; }
+  h1 { font-family: 'Oswald', sans-serif; font-size: 27px; text-transform: uppercase; margin: 0; letter-spacing: .01em; }
+  .topbtns { margin-left:auto; display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .tabs { display: flex; gap: 5px; flex-wrap: wrap; }
+  button.tab, .btn {
+    font-family: 'Oswald', sans-serif; font-weight: 600; font-size: 12.5px;
+    text-transform: uppercase; letter-spacing: .04em;
+    background: transparent; border: 1.5px solid #3a5445; color: #b7c9bb;
+    padding: 7px 13px; cursor: pointer; border-radius: 2px; transition: .15s;
+  }
+  button.tab:hover, .btn:hover { border-color: var(--gold); color: var(--text); }
+  button.tab.active { background: var(--gold); border-color: var(--gold); color: var(--bg); }
+  .btn.on { border-color: var(--gold); color: var(--gold); }
+  input[type=text] {
+    background: #14291e; border: 1.5px solid #3a5445; color: var(--text);
+    padding: 7px 10px; font-family: 'IBM Plex Mono', monospace; font-size: 13px;
+    border-radius: 2px; outline: none;
+  }
+  input:focus { border-color: var(--gold); }
+  input::placeholder { color: var(--dim); }
+  label.chk { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+
+  .stats { display: flex; flex-wrap: wrap; gap: 14px; padding: 9px 12px; border: 1.5px solid var(--line); border-radius: 3px; margin-bottom: 12px; background: var(--panel); }
+  .stat { font-size: 11.5px; color: var(--muted); }
+  .stat b { font-family: 'Oswald', sans-serif; color: var(--text); font-size: 15px; margin-left: 5px; }
+  .stat b.gold { color: var(--gold); }
+
+  .wrap { border: 1.5px solid var(--line); border-radius: 3px; overflow-x: auto; background: var(--panel); }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 1080px; }
+  thead th {
+    position: sticky; top: 0; background: #123020; z-index: 2;
+    text-align: left; padding: 9px 8px; font-family: 'Oswald', sans-serif; font-weight: 500;
+    font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: #cfe3d5;
+    border-bottom: 1.5px solid var(--line); white-space: nowrap; cursor: pointer; user-select: none;
+  }
+  thead th:hover { color: var(--gold); }
+  thead th.nosort { cursor: default; } thead th.nosort:hover { color: #cfe3d5; }
+  thead th.sorted { color: var(--gold); }
+  tbody tr { border-bottom: 1px solid var(--line-soft); }
+  tbody tr:hover { background: #142a1e; }
+  tbody td { padding: 6px 8px; white-space: nowrap; vertical-align: middle; }
+  td.name { font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 13.5px; white-space: normal; min-width: 140px; }
+  td.num { text-align: center; font-variant-numeric: tabular-nums; }
+  td.avg { text-align: center; color: var(--gold); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .muted { color: #3f5b4c; }
+
+  tr.drafted td { color: #5d7568; text-decoration: line-through; }
+  tr.drafted td.act, tr.drafted td.note-cell { text-decoration: none; }
+  tr.drafted { background: #0c1a13; }
+
+  tr.tierbreak td {
+    background: #0a170f; color: var(--gold); font-family:'Oswald',sans-serif;
+    font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase;
+    padding: 4px 10px; border-top: 1.5px solid var(--gold); border-bottom: none;
+    text-decoration: none;
+  }
+
+  .pos-pill { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 2px; font-weight: 600; color: var(--bg); }
+  .grade { display:inline-block; font-size:11px; font-weight:700; padding:1px 6px; border-radius:2px; color:var(--bg); }
+  .sos-dot { display:inline-block; min-width: 22px; height: 18px; line-height: 18px; text-align: center; border-radius: 2px; font-size: 11px; font-weight: 600; color: var(--bg); }
+
+  button.mark, button.star {
+    font-family: 'Oswald', sans-serif; font-size: 11px; text-transform: uppercase;
+    background: transparent; border: 1.5px solid #3a5445; color: var(--muted);
+    padding: 5px 9px; cursor: pointer; border-radius: 2px; letter-spacing: .03em;
+  }
+  button.mark:hover { border-color: var(--red); color: var(--red); }
+  tr.drafted button.mark:hover { border-color: var(--green); color: var(--green); }
+  button.star { font-size: 13px; padding: 3px 8px; line-height: 1.1; }
+  button.star.on { border-color: var(--gold); color: var(--gold); }
+
+  .notebtn {
+    background: transparent; border: 1px solid transparent; color: #cfe3d5;
+    font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; text-align: left;
+    padding: 5px 7px; border-radius: 2px; cursor: pointer; width: 100%;
+    min-width: 190px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .notebtn:hover { border-color: #3a5445; }
+  .notebtn.empty { color: #4d6657; font-style: italic; }
+  .notebtn.has { color: var(--gold); }
+
+  tr.noterow td { padding: 0 10px 12px; background: #0d1f15; }
+  tr.noterow .nl { font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:.1em; margin:8px 0 5px; }
+  textarea.note {
+    width: 100%; background: #14291e; border: 1.5px solid var(--gold); color: var(--text);
+    font-family: 'IBM Plex Mono', monospace; font-size: 14px; line-height: 1.55;
+    padding: 10px; border-radius: 3px; outline: none; resize: vertical;
+    min-height: 90px; overflow: hidden;
+  }
+
+  footer { margin-top: 14px; font-size: 10.5px; color: var(--dim); line-height: 1.6; }
+  .save-note { font-size: 11px; color: var(--green); margin-left: auto; }
+  .save-note.err { color: var(--red); }
+  .toolnav { display:flex; gap:6px; margin-bottom:12px; }
+  .toolnav button {
+    font-family:'Oswald',sans-serif; font-weight:600; font-size:13px; text-transform:uppercase;
+    letter-spacing:.05em; background:transparent; border:1.5px solid #3a5445; color:#b7c9bb;
+    padding:9px 18px; cursor:pointer; border-radius:2px;
+  }
+  .toolnav button.active { background:#123020; border-color:var(--gold); color:var(--gold); }
+  .simlayout { display:grid; grid-template-columns:250px 1fr; gap:14px; align-items:start; }
+  .simleft { position:sticky; top:8px; }
+  .slotcolhead { display:flex; align-items:center; justify-content:space-between; gap:6px;
+    font-family:'Oswald',sans-serif; font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--muted); margin-bottom:6px; }
+  .btn.clearall { font-size:10px; padding:4px 8px; }
+  .btn.clearall:hover { border-color:var(--red); color:var(--red); }
+  .btn.armed { background:var(--red); border-color:var(--red); color:#fff; }
+  .slotgrid { display:flex; flex-direction:column; gap:5px; margin-bottom:12px;
+    max-height:calc(100vh - 190px); overflow-y:auto; padding-right:2px; }
+  .slotgrid .slot { display:flex; align-items:center; gap:8px; padding:7px 9px; }
+  .slotgrid .slot .sl { min-width:52px; font-size:11px; }
+  .slotgrid .slot .sv { margin-top:0; width:62px; flex:none; }
+  .slotgrid .slot .filled { margin-top:0; flex:1; min-width:0; font-size:10px; }
+  .simright { min-width:0; }
+  @media (max-width: 760px) {
+    .simlayout { grid-template-columns:1fr; }
+    .simleft { position:static; }
+    .slotgrid { max-height:none; }
+  }
+  .slot {
+    border:1.5px solid var(--line); border-radius:3px; background:var(--panel);
+    padding:8px 9px; cursor:pointer;
+  }
+  .slot.active { border-color:var(--gold); background:#14291e; }
+  .slot .sl { font-family:'Oswald',sans-serif; font-size:11px; letter-spacing:.08em;
+              text-transform:uppercase; color:var(--muted); }
+  .slot.active .sl { color:var(--gold); }
+  .slot .sv { display:flex; align-items:center; gap:4px; margin-top:4px; }
+  .slot input {
+    width:100%; background:#0e1f17; border:1px solid #3a5445; color:var(--gold);
+    font-family:'IBM Plex Mono',monospace; font-size:15px; font-weight:600; text-align:center;
+    padding:5px; border-radius:2px; outline:none;
+  }
+  .slot input:focus { border-color:var(--gold); }
+  .slot .filled { font-size:10.5px; color:var(--green); margin-top:3px; white-space:nowrap;
+                  overflow:hidden; text-overflow:ellipsis; display:flex; align-items:center; gap:4px; }
+  .slot.locked { border-color:var(--green); }
+  .slot.locked input { color:var(--green); border-color:#2f6b48; }
+  .slot .clr { background:transparent; border:none; color:var(--red); font-size:12px;
+               cursor:pointer; padding:0 2px; margin-left:auto; line-height:1; }
+  .budgetbar { display:flex; gap:16px; flex-wrap:wrap; align-items:center; padding:10px 12px;
+               border:1.5px solid var(--line); border-radius:3px; background:var(--panel); margin-bottom:12px; }
+  .bb { font-size:11px; color:var(--muted); }
+  .bb b { font-family:'Oswald',sans-serif; font-size:17px; margin-left:5px; color:var(--text); }
+  .bb b.gold { color:var(--gold); } .bb b.red { color:var(--red); } .bb b.green { color:var(--green); }
+  .simhead { font-family:'Oswald',sans-serif; font-size:14px; text-transform:uppercase;
+             letter-spacing:.05em; color:var(--gold); margin:14px 0 6px; }
+  .cand { display:flex; align-items:center; gap:9px; padding:8px 10px; border:1px solid var(--line);
+          border-radius:3px; background:var(--panel); margin-bottom:5px; }
+  .cand.taken { opacity:.4; }
+  .cand .cn { font-family:'Oswald',sans-serif; font-weight:500; font-size:14px; flex:1; min-width:0; }
+  .cand .ce { font-family:'Oswald',sans-serif; font-size:15px; font-weight:600; color:var(--gold); }
+  .hint { font-size:11px; color:var(--dim); margin-bottom:10px; line-height:1.6; }
+  @media (max-width: 700px) { h1 { font-size: 21px; } body { padding: 12px 8px 50px; } }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <div>
+      <div class="eyebrow">Prison League &middot; Auction Draft War Room</div>
+      <h1>2026 Draft Dashboard</h1>
+    </div>
+    <div class="topbtns">
+      <button class="btn" id="exportBtn">Export</button>
+      <button class="btn" id="importBtn">Import</button>
+      <input type="file" id="importFile" accept=".json" style="display:none">
+      <button class="btn" id="resetBtn">Reset</button>
+    </div>
+  </header>
+
+  <div class="toolnav">
+    <button id="navBoard" class="active">Draft Board</button>
+    <button id="navSim">Budget Simulator</button>
+  </div>
+
+  <div id="viewBoard">
+  <div class="bar">
+    <div class="tabs" id="tabs"></div>
+    <input type="text" id="search" placeholder="Search player…" style="width:170px">
+    <button class="btn" id="targetsBtn">★ Targets only</button>
+    <label class="chk"><input type="checkbox" id="hideDrafted" checked> Hide drafted</label>
+    <span class="save-note" id="saveNote">auto-save on</span>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div id="diag" style="display:none;background:#3a1f1c;border:1.5px solid #d9695f;color:#f3d9d6;padding:12px 14px;border-radius:3px;margin-bottom:12px;font-size:12.5px;line-height:1.6"></div>
+
+  <div class="wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="nosort">★</th>
+          <th data-sort="rk">Rk</th>
+          <th data-sort="tier">Tier</th>
+          <th data-sort="name">Player</th>
+          <th data-sort="team">Tm</th>
+          <th data-sort="pos">Pos</th>
+          <th data-sort="posRk">Pos Rk</th>
+          <th data-sort="bye">Bye</th>
+          <th data-sort="sos">SOS</th>
+          <th data-sort="p0">'22</th>
+          <th data-sort="p1">'23</th>
+          <th data-sort="p2">'24</th>
+          <th data-sort="p3">'25</th>
+          <th data-sort="avg">Avg $</th>
+          <th data-sort="ol">OL</th>
+          <th data-sort="offRk">Off Rk</th>
+          <th class="nosort">Notes</th>
+          <th class="nosort">Status</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  </div><!-- /viewBoard -->
+
+  <div id="viewSim" style="display:none">
+    <div class="budgetbar" id="budgetbar"></div>
+    <div class="hint">
+      Tap a slot, type what you'd spend, and the list below shows players whose historical price
+      lands in that range. Estimates come from what your league actually paid at each positional
+      rank over the last four drafts.
+    </div>
+    <div class="simlayout">
+      <div class="simleft">
+        <div class="slotcolhead">
+          <span>Roster slots</span>
+          <button class="btn clearall" id="clearSlots">Clear all</button>
+        </div>
+        <div class="slotgrid" id="slotgrid"></div>
+      </div>
+      <div class="simright"><div id="simResults"></div></div>
+    </div>
+  </div>
+
+  <footer>
+    <strong>SOS</strong> = FantasyPros strength of schedule, 1 (hardest) to 5 (easiest). &nbsp;
+    <strong>OL</strong> = Clay's 2026 offensive-line unit grade: A=8, B=7, C=6, D=5 (higher is better). &nbsp;
+    <strong>Off Rk</strong> = Clay's team offense ranking, 1–32 (1 is best). &nbsp;
+    <strong>'22–'25</strong> = auction prices from your league; blank means that player wasn't drafted that year. &nbsp;
+    <strong>Avg $</strong> = mean of available years. &nbsp;
+    <strong>★</strong> = your target list; use "Targets only" to filter. Tier breaks show as gold dividers when sorted by Rank or Tier.
+    <br><br>Notes, stars, and drafted marks save in this browser automatically. Tap <strong>Export</strong> before draft night for a backup.
+  </footer>
+</div>
+
+<script>
+const PLAYERS = [{"rk": 1, "tier": 1, "name": "Jahmyr Gibbs", "team": "DET", "pos": "RB", "posRk": 1, "bye": 6, "sos": 5, "p": [null, 38, 47, 61], "avg": 49, "ol": 6, "offRk": 8, "olg": "C", "est": 65}, {"rk": 2, "tier": 1, "name": "Bijan Robinson", "team": "ATL", "pos": "RB", "posRk": 2, "bye": 11, "sos": 2, "p": [null, 49, 70, 63], "avg": 61, "ol": 6, "offRk": 22, "olg": "C", "est": 63}, {"rk": 3, "tier": 1, "name": "Ja'Marr Chase", "team": "CIN", "pos": "WR", "posRk": 1, "bye": 6, "sos": 4, "p": [60, 62, 54, 67], "avg": 61, "ol": 5, "offRk": 3, "olg": "D", "est": 66}, {"rk": 4, "tier": 1, "name": "Puka Nacua", "team": "LAR", "pos": "WR", "posRk": 2, "bye": 11, "sos": 1, "p": [null, null, 41, 47], "avg": 44, "ol": 7, "offRk": 1, "olg": "B", "est": 63}, {"rk": 5, "tier": 1, "name": "Jaxon Smith-Njigba", "team": "SEA", "pos": "WR", "posRk": 3, "bye": 11, "sos": 3, "p": [null, 5, 8, 30], "avg": 14, "ol": 6, "offRk": 13, "olg": "C", "est": 59}, {"rk": 6, "tier": 1, "name": "Amon-Ra St. Brown", "team": "DET", "pos": "WR", "posRk": 4, "bye": 6, "sos": 4, "p": [14, 48, 70, 49], "avg": 45, "ol": 6, "offRk": 8, "olg": "C", "est": 54}, {"rk": 7, "tier": 1, "name": "Christian McCaffrey", "team": "SF", "pos": "RB", "posRk": 3, "bye": 8, "sos": 2, "p": [63, 59, 69, 61], "avg": 63, "ol": 7, "offRk": 4, "olg": "B", "est": 61}, {"rk": 8, "tier": 1, "name": "Jonathan Taylor", "team": "IND", "pos": "RB", "posRk": 4, "bye": 13, "sos": 4, "p": [69, 15, 55, 39], "avg": 44, "ol": 6, "offRk": 19, "olg": "C", "est": 57}, {"rk": 9, "tier": 1, "name": "James Cook III", "team": "BUF", "pos": "RB", "posRk": 5, "bye": 7, "sos": 2, "p": [7, 14, 34, 25], "avg": 20, "ol": 7, "offRk": 2, "olg": "B", "est": 52}, {"rk": 10, "tier": 1, "name": "CeeDee Lamb", "team": "DAL", "pos": "WR", "posRk": 5, "bye": 14, "sos": 2, "p": [41, 47, 70, 61], "avg": 55, "ol": 6, "offRk": 6, "olg": "C", "est": 52}, {"rk": 11, "tier": 2, "name": "Justin Jefferson", "team": "MIN", "pos": "WR", "posRk": 6, "bye": 6, "sos": 5, "p": [61, 66, 55, 59], "avg": 60, "ol": 6, "offRk": 20, "olg": "C", "est": 48}, {"rk": 12, "tier": 2, "name": "Chase Brown", "team": "CIN", "pos": "RB", "posRk": 6, "bye": 6, "sos": 2, "p": [null, null, 5, 42], "avg": 24, "ol": 5, "offRk": 3, "olg": "D", "est": 50}, {"rk": 13, "tier": 2, "name": "A.J. Brown", "team": "NE", "pos": "WR", "posRk": 7, "bye": 11, "sos": 2, "p": [25, 44, 53, 41], "avg": 41, "ol": 6, "offRk": 10, "olg": "C", "est": 47}, {"rk": 14, "tier": 2, "name": "Saquon Barkley", "team": "PHI", "pos": "RB", "posRk": 7, "bye": 10, "sos": 4, "p": [43, 54, 43, 60], "avg": 50, "ol": 7, "offRk": 9, "olg": "B", "est": 49}, {"rk": 15, "tier": 2, "name": "Drake London", "team": "ATL", "pos": "WR", "posRk": 8, "bye": 11, "sos": 3, "p": [6, 15, 38, 46], "avg": 26, "ol": 6, "offRk": 22, "olg": "C", "est": 42}, {"rk": 16, "tier": 2, "name": "De'Von Achane", "team": "MIA", "pos": "RB", "posRk": 8, "bye": 6, "sos": 3, "p": [null, 4, 32, 46], "avg": 27, "ol": 5, "offRk": 32, "olg": "D", "est": 46}, {"rk": 17, "tier": 2, "name": "Nico Collins", "team": "HOU", "pos": "WR", "posRk": 9, "bye": 8, "sos": 3, "p": [2, 2, 32, 52], "avg": 22, "ol": 5, "offRk": 24, "olg": "D", "est": 40}, {"rk": 18, "tier": 2, "name": "Brock Bowers", "team": "LV", "pos": "TE", "posRk": 1, "bye": 13, "sos": 3, "p": [null, null, 3, 42], "avg": 22, "ol": 6, "offRk": 28, "olg": "C", "est": 36}, {"rk": 19, "tier": 2, "name": "Kenneth Walker III", "team": "KC", "pos": "RB", "posRk": 9, "bye": 5, "sos": 3, "p": [6, 25, 30, 31], "avg": 23, "ol": 6, "offRk": 7, "olg": "C", "est": 43}, {"rk": 20, "tier": 2, "name": "Omarion Hampton", "team": "LAC", "pos": "RB", "posRk": 10, "bye": 7, "sos": 3, "p": [null, null, null, 31], "avg": 31, "ol": 6, "offRk": 14, "olg": "C", "est": 39}, {"rk": 21, "tier": 2, "name": "Derrick Henry", "team": "BAL", "pos": "RB", "posRk": 11, "bye": 13, "sos": 3, "p": [59, 49, 44, 48], "avg": 50, "ol": 6, "offRk": 5, "olg": "C", "est": 36}, {"rk": 22, "tier": 2, "name": "George Pickens", "team": "DAL", "pos": "WR", "posRk": 10, "bye": 14, "sos": 2, "p": [3, 12, 19, 21], "avg": 14, "ol": 6, "offRk": 6, "olg": "C", "est": 36}, {"rk": 23, "tier": 2, "name": "Chris Olave", "team": "NO", "pos": "WR", "posRk": 11, "bye": 8, "sos": 3, "p": [6, 37, 26, 7], "avg": 19, "ol": 6, "offRk": 25, "olg": "C", "est": 34}, {"rk": 24, "tier": 2, "name": "Trey McBride", "team": "ARI", "pos": "TE", "posRk": 2, "bye": 14, "sos": 2, "p": [null, null, 17, 25], "avg": 21, "ol": 6, "offRk": 27, "olg": "C", "est": 26}, {"rk": 25, "tier": 2, "name": "Ashton Jeanty", "team": "LV", "pos": "RB", "posRk": 12, "bye": 13, "sos": 2, "p": [null, null, null, 53], "avg": 53, "ol": 6, "offRk": 28, "olg": "C", "est": 32}, {"rk": 26, "tier": 3, "name": "Josh Allen", "team": "BUF", "pos": "QB", "posRk": 1, "bye": 7, "sos": 3, "p": [19, 25, 21, 22], "avg": 22, "ol": 7, "offRk": 2, "olg": "B", "est": 25}, {"rk": 27, "tier": 3, "name": "DeVonta Smith", "team": "PHI", "pos": "WR", "posRk": 12, "bye": 10, "sos": 4, "p": [4, 30, 24, 12], "avg": 18, "ol": 7, "offRk": 9, "olg": "B", "est": 32}, {"rk": 28, "tier": 3, "name": "Malik Nabers", "team": "NYG", "pos": "WR", "posRk": 13, "bye": 8, "sos": 4, "p": [null, null, 26, 56], "avg": 41, "ol": 6, "offRk": 21, "olg": "C", "est": 30}, {"rk": 29, "tier": 3, "name": "Rashee Rice", "team": "KC", "pos": "WR", "posRk": 14, "bye": 5, "sos": 2, "p": [null, null, 22, 14], "avg": 18, "ol": 6, "offRk": 7, "olg": "C", "est": 30}, {"rk": 30, "tier": 3, "name": "Zay Flowers", "team": "BAL", "pos": "WR", "posRk": 15, "bye": 13, "sos": 4, "p": [null, 4, 16, 20], "avg": 13, "ol": 6, "offRk": 5, "olg": "C", "est": 26}, {"rk": 31, "tier": 3, "name": "Kyren Williams", "team": "LAR", "pos": "RB", "posRk": 13, "bye": 11, "sos": 5, "p": [null, null, 44, 25], "avg": 34, "ol": 7, "offRk": 1, "olg": "B", "est": 32}, {"rk": 32, "tier": 3, "name": "Javonte Williams", "team": "DAL", "pos": "RB", "posRk": 14, "bye": 14, "sos": 4, "p": [43, 15, 18, 3], "avg": 20, "ol": 6, "offRk": 6, "olg": "C", "est": 30}, {"rk": 33, "tier": 3, "name": "Tee Higgins", "team": "CIN", "pos": "WR", "posRk": 16, "bye": 6, "sos": 4, "p": [30, 31, 22, 29], "avg": 28, "ol": 5, "offRk": 3, "olg": "D", "est": 26}, {"rk": 34, "tier": 3, "name": "Breece Hall", "team": "NYJ", "pos": "RB", "posRk": 15, "bye": 13, "sos": 3, "p": [17, 17, 64, 15], "avg": 28, "ol": 6, "offRk": 23, "olg": "C", "est": 28}, {"rk": 35, "tier": 3, "name": "Lamar Jackson", "team": "BAL", "pos": "QB", "posRk": 2, "bye": 13, "sos": 3, "p": [8, 22, 16, 31], "avg": 19, "ol": 6, "offRk": 5, "olg": "C", "est": 22}, {"rk": 36, "tier": 3, "name": "Jaylen Waddle", "team": "DEN", "pos": "WR", "posRk": 17, "bye": 10, "sos": 2, "p": [15, 37, 30, 14], "avg": 24, "ol": 8, "offRk": 11, "olg": "A", "est": 24}, {"rk": 37, "tier": 3, "name": "Ladd McConkey", "team": "LAC", "pos": "WR", "posRk": 18, "bye": 7, "sos": 2, "p": [null, null, 4, 33], "avg": 18, "ol": 6, "offRk": 14, "olg": "C", "est": 24}, {"rk": 38, "tier": 3, "name": "Garrett Wilson", "team": "NYJ", "pos": "WR", "posRk": 19, "bye": 13, "sos": 4, "p": [2, 47, 64, 22], "avg": 34, "ol": 6, "offRk": 23, "olg": "C", "est": 21}, {"rk": 39, "tier": 3, "name": "Tetairoa McMillan", "team": "CAR", "pos": "WR", "posRk": 20, "bye": 5, "sos": 2, "p": [null, null, null, 19], "avg": 19, "ol": 6, "offRk": 30, "olg": "C", "est": 20}, {"rk": 40, "tier": 3, "name": "Colston Loveland", "team": "CHI", "pos": "TE", "posRk": 3, "bye": 10, "sos": 2, "p": [null, null, null, 1], "avg": 1, "ol": 7, "offRk": 15, "olg": "B", "est": 20}, {"rk": 41, "tier": 3, "name": "Jeremiyah Love", "team": "ARI", "pos": "RB", "posRk": 16, "bye": 14, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 27, "olg": "C", "est": 25}, {"rk": 42, "tier": 3, "name": "Emeka Egbuka", "team": "TB", "pos": "WR", "posRk": 21, "bye": 10, "sos": 4, "p": [null, null, null, 17], "avg": 17, "ol": 7, "offRk": 16, "olg": "B", "est": 19}, {"rk": 43, "tier": 4, "name": "Drake Maye", "team": "NE", "pos": "QB", "posRk": 3, "bye": 11, "sos": 2, "p": [null, null, null, 2], "avg": 2, "ol": 6, "offRk": 10, "olg": "C", "est": 18}, {"rk": 44, "tier": 4, "name": "Travis Etienne Jr.", "team": "NO", "pos": "RB", "posRk": 17, "bye": 8, "sos": 3, "p": [26, 32, 46, 7], "avg": 28, "ol": 6, "offRk": 25, "olg": "C", "est": 23}, {"rk": 45, "tier": 4, "name": "D'Andre Swift", "team": "CHI", "pos": "RB", "posRk": 18, "bye": 10, "sos": 2, "p": [47, 6, 17, 26], "avg": 24, "ol": 7, "offRk": 15, "olg": "B", "est": 22}, {"rk": 46, "tier": 4, "name": "Luther Burden III", "team": "CHI", "pos": "WR", "posRk": 22, "bye": 10, "sos": 3, "p": [null, null, null, 1], "avg": 1, "ol": 7, "offRk": 15, "olg": "B", "est": 18}, {"rk": 47, "tier": 4, "name": "Terry McLaurin", "team": "WAS", "pos": "WR", "posRk": 23, "bye": 7, "sos": 2, "p": [21, 10, 13, 19], "avg": 16, "ol": 5, "offRk": 17, "olg": "D", "est": 18}, {"rk": 48, "tier": 4, "name": "Joe Burrow", "team": "CIN", "pos": "QB", "posRk": 4, "bye": 6, "sos": 3, "p": [2, 14, 6, 13], "avg": 9, "ol": 5, "offRk": 3, "olg": "D", "est": 15}, {"rk": 49, "tier": 4, "name": "Davante Adams", "team": "LAR", "pos": "WR", "posRk": 24, "bye": 11, "sos": 1, "p": [51, 45, 30, 16], "avg": 36, "ol": 7, "offRk": 1, "olg": "B", "est": 18}, {"rk": 50, "tier": 4, "name": "Jameson Williams", "team": "DET", "pos": "WR", "posRk": 25, "bye": 6, "sos": 4, "p": [1, 1, 3, 20], "avg": 6, "ol": 6, "offRk": 8, "olg": "C", "est": 17}, {"rk": 51, "tier": 4, "name": "Bucky Irving", "team": "TB", "pos": "RB", "posRk": 19, "bye": 10, "sos": 2, "p": [null, null, 1, 42], "avg": 22, "ol": 7, "offRk": 16, "olg": "B", "est": 20}, {"rk": 52, "tier": 4, "name": "Cam Skattebo", "team": "NYG", "pos": "RB", "posRk": 20, "bye": 8, "sos": 4, "p": [null, null, null, 1], "avg": 1, "ol": 6, "offRk": 21, "olg": "C", "est": 18}, {"rk": 53, "tier": 4, "name": "Tyler Warren", "team": "IND", "pos": "TE", "posRk": 4, "bye": 13, "sos": 3, "p": [null, null, null, 3], "avg": 3, "ol": 6, "offRk": 19, "olg": "C", "est": 14}, {"rk": 54, "tier": 4, "name": "DJ Moore", "team": "BUF", "pos": "WR", "posRk": 26, "bye": 7, "sos": 4, "p": [28, 16, 23, 15], "avg": 20, "ol": 7, "offRk": 2, "olg": "B", "est": 15}, {"rk": 55, "tier": 4, "name": "David Montgomery", "team": "HOU", "pos": "RB", "posRk": 21, "bye": 8, "sos": 4, "p": [16, 9, 13, 16], "avg": 14, "ol": 5, "offRk": 24, "olg": "D", "est": 16}, {"rk": 56, "tier": 4, "name": "Quinshon Judkins", "team": "CLE", "pos": "RB", "posRk": 22, "bye": 11, "sos": 3, "p": [null, null, null, 1], "avg": 1, "ol": 5, "offRk": 31, "olg": "D", "est": 15}, {"rk": 57, "tier": 4, "name": "Christian Watson", "team": "GB", "pos": "WR", "posRk": 27, "bye": 11, "sos": 5, "p": [null, 18, 6, null], "avg": 12, "ol": 6, "offRk": 12, "olg": "C", "est": 15}, {"rk": 58, "tier": 4, "name": "Rome Odunze", "team": "CHI", "pos": "WR", "posRk": 28, "bye": 10, "sos": 3, "p": [null, null, 7, 13], "avg": 10, "ol": 7, "offRk": 15, "olg": "B", "est": 14}, {"rk": 59, "tier": 4, "name": "Jalen Hurts", "team": "PHI", "pos": "QB", "posRk": 5, "bye": 10, "sos": 5, "p": [7, 28, 17, 17], "avg": 17, "ol": 7, "offRk": 9, "olg": "B", "est": 11}, {"rk": 60, "tier": 4, "name": "Bhayshul Tuten", "team": "JAC", "pos": "RB", "posRk": 23, "bye": 7, "sos": 4, "p": [null, null, null, 2], "avg": 2, "ol": 6, "offRk": 18, "olg": "C", "est": 14}, {"rk": 61, "tier": 4, "name": "Jadarian Price", "team": "SEA", "pos": "RB", "posRk": 24, "bye": 11, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 13, "olg": "C", "est": 14}, {"rk": 62, "tier": 4, "name": "Jayden Daniels", "team": "WAS", "pos": "QB", "posRk": 6, "bye": 7, "sos": 2, "p": [null, null, 7, 21], "avg": 14, "ol": 5, "offRk": 17, "olg": "D", "est": 10}, {"rk": 63, "tier": 4, "name": "Mike Evans", "team": "SF", "pos": "WR", "posRk": 29, "bye": 8, "sos": 2, "p": [29, 12, 23, 19], "avg": 21, "ol": 7, "offRk": 4, "olg": "B", "est": 14}, {"rk": 64, "tier": 4, "name": "Parker Washington", "team": "JAC", "pos": "WR", "posRk": 30, "bye": 7, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 18, "olg": "C", "est": 13}, {"rk": 65, "tier": 5, "name": "TreVeyon Henderson", "team": "NE", "pos": "RB", "posRk": 25, "bye": 11, "sos": 2, "p": [null, null, null, 27], "avg": 27, "ol": 6, "offRk": 10, "olg": "C", "est": 13}, {"rk": 66, "tier": 5, "name": "Caleb Williams", "team": "CHI", "pos": "QB", "posRk": 7, "bye": 10, "sos": 3, "p": [null, null, 3, 1], "avg": 2, "ol": 7, "offRk": 15, "olg": "B", "est": 8}, {"rk": 67, "tier": 5, "name": "Rhamondre Stevenson", "team": "NE", "pos": "RB", "posRk": 26, "bye": 11, "sos": 2, "p": [10, 22, 7, 4], "avg": 11, "ol": 6, "offRk": 10, "olg": "C", "est": 11}, {"rk": 68, "tier": 5, "name": "Tucker Kraft", "team": "GB", "pos": "TE", "posRk": 5, "bye": 11, "sos": 2, "p": [null, null, null, 3], "avg": 3, "ol": 6, "offRk": 12, "olg": "C", "est": 8}, {"rk": 69, "tier": 5, "name": "Jaylen Warren", "team": "PIT", "pos": "RB", "posRk": 27, "bye": 9, "sos": 2, "p": [null, 3, 5, 8], "avg": 5, "ol": 5, "offRk": 26, "olg": "D", "est": 10}, {"rk": 70, "tier": 5, "name": "Marvin Harrison Jr.", "team": "ARI", "pos": "WR", "posRk": 31, "bye": 14, "sos": 2, "p": [null, null, 40, 24], "avg": 32, "ol": 6, "offRk": 27, "olg": "C", "est": 13}, {"rk": 71, "tier": 5, "name": "Justin Herbert", "team": "LAC", "pos": "QB", "posRk": 8, "bye": 7, "sos": 2, "p": [11, 13, 1, 2], "avg": 7, "ol": 6, "offRk": 14, "olg": "C", "est": 6}, {"rk": 72, "tier": 5, "name": "Carnell Tate", "team": "TEN", "pos": "WR", "posRk": 32, "bye": 9, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 5, "offRk": 29, "olg": "D", "est": 12}, {"rk": 73, "tier": 5, "name": "Trevor Lawrence", "team": "JAC", "pos": "QB", "posRk": 9, "bye": 7, "sos": 4, "p": [1, 11, 1, 1], "avg": 4, "ol": 6, "offRk": 18, "olg": "C", "est": 4}, {"rk": 74, "tier": 5, "name": "Dak Prescott", "team": "DAL", "pos": "QB", "posRk": 10, "bye": 14, "sos": 2, "p": [3, 1, 6, 2], "avg": 3, "ol": 6, "offRk": 6, "olg": "C", "est": 3}, {"rk": 75, "tier": 5, "name": "Tony Pollard", "team": "TEN", "pos": "RB", "posRk": 28, "bye": 9, "sos": 3, "p": [15, 49, 6, 18], "avg": 22, "ol": 5, "offRk": 29, "olg": "D", "est": 9}, {"rk": 76, "tier": 5, "name": "Rico Dowdle", "team": "PIT", "pos": "RB", "posRk": 29, "bye": 9, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 5, "offRk": 26, "olg": "D", "est": 8}, {"rk": 77, "tier": 5, "name": "DK Metcalf", "team": "PIT", "pos": "WR", "posRk": 33, "bye": 9, "sos": 3, "p": [13, 31, 25, 16], "avg": 21, "ol": 5, "offRk": 26, "olg": "D", "est": 11}, {"rk": 78, "tier": 5, "name": "Harold Fannin Jr.", "team": "CLE", "pos": "TE", "posRk": 6, "bye": 11, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 5, "offRk": 31, "olg": "D", "est": 6}, {"rk": 79, "tier": 5, "name": "Chris Godwin Jr.", "team": "TB", "pos": "WR", "posRk": 34, "bye": 10, "sos": 4, "p": [14, 11, 8, 4], "avg": 9, "ol": 7, "offRk": 16, "olg": "B", "est": 10}, {"rk": 80, "tier": 5, "name": "Brian Thomas Jr.", "team": "JAC", "pos": "WR", "posRk": 35, "bye": 7, "sos": 4, "p": [null, null, 7, 47], "avg": 27, "ol": 6, "offRk": 18, "olg": "C", "est": 9}, {"rk": 81, "tier": 5, "name": "Sam LaPorta", "team": "DET", "pos": "TE", "posRk": 7, "bye": 6, "sos": 3, "p": [null, 2, 16, 9], "avg": 9, "ol": 6, "offRk": 8, "olg": "C", "est": 5}, {"rk": 82, "tier": 5, "name": "Jonathon Brooks", "team": "CAR", "pos": "RB", "posRk": 30, "bye": 5, "sos": 1, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 30, "olg": "C", "est": 8}, {"rk": 83, "tier": 5, "name": "Kyle Pitts Sr.", "team": "ATL", "pos": "TE", "posRk": 8, "bye": 11, "sos": 3, "p": [23, 7, 7, 1], "avg": 10, "ol": 6, "offRk": 22, "olg": "C", "est": 4}, {"rk": 84, "tier": 5, "name": "Courtland Sutton", "team": "DEN", "pos": "WR", "posRk": 36, "bye": 10, "sos": 2, "p": [21, 4, 4, 20], "avg": 12, "ol": 8, "offRk": 11, "olg": "A", "est": 8}, {"rk": 85, "tier": 5, "name": "Quentin Johnston", "team": "LAC", "pos": "WR", "posRk": 37, "bye": 7, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 14, "olg": "C", "est": 7}, {"rk": 86, "tier": 5, "name": "J.K. Dobbins", "team": "DEN", "pos": "RB", "posRk": 31, "bye": 10, "sos": 2, "p": [15, 16, 2, 6], "avg": 10, "ol": 8, "offRk": 11, "olg": "A", "est": 7}, {"rk": 87, "tier": 5, "name": "Michael Pittman Jr.", "team": "PIT", "pos": "WR", "posRk": 38, "bye": 9, "sos": 3, "p": [29, 6, 22, 5], "avg": 16, "ol": 5, "offRk": 26, "olg": "D", "est": 6}, {"rk": 88, "tier": 5, "name": "Blake Corum", "team": "LAR", "pos": "RB", "posRk": 32, "bye": 11, "sos": 5, "p": [null, null, null, null], "avg": null, "ol": 7, "offRk": 1, "olg": "B", "est": 7}, {"rk": 89, "tier": 5, "name": "Michael Wilson", "team": "ARI", "pos": "WR", "posRk": 39, "bye": 14, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 27, "olg": "C", "est": 6}, {"rk": 90, "tier": 5, "name": "MarShawn Lloyd", "team": "GB", "pos": "RB", "posRk": 33, "bye": 11, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 12, "olg": "C", "est": 6}, {"rk": 91, "tier": 5, "name": "Alec Pierce", "team": "IND", "pos": "WR", "posRk": 40, "bye": 13, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 19, "olg": "C", "est": 6}, {"rk": 92, "tier": 5, "name": "George Kittle", "team": "SF", "pos": "TE", "posRk": 9, "bye": 8, "sos": 3, "p": [15, 9, 6, 22], "avg": 13, "ol": 7, "offRk": 4, "olg": "B", "est": 4}, {"rk": 93, "tier": 5, "name": "Chuba Hubbard", "team": "CAR", "pos": "RB", "posRk": 34, "bye": 5, "sos": 1, "p": [null, 1, 4, 18], "avg": 8, "ol": 6, "offRk": 30, "olg": "C", "est": 6}, {"rk": 94, "tier": 6, "name": "Brock Purdy", "team": "SF", "pos": "QB", "posRk": 11, "bye": 8, "sos": 1, "p": [null, null, 1, 2], "avg": 2, "ol": 7, "offRk": 4, "olg": "B", "est": 2}, {"rk": 95, "tier": 6, "name": "Bo Nix", "team": "DEN", "pos": "QB", "posRk": 12, "bye": 10, "sos": 3, "p": [null, null, null, 11], "avg": 11, "ol": 8, "offRk": 11, "olg": "A", "est": 2}, {"rk": 96, "tier": 6, "name": "Josh Downs", "team": "IND", "pos": "WR", "posRk": 41, "bye": 13, "sos": 4, "p": [null, null, 1, 4], "avg": 2, "ol": 6, "offRk": 19, "olg": "C", "est": 6}, {"rk": 97, "tier": 6, "name": "Stefon Diggs", "team": "WAS", "pos": "WR", "posRk": 42, "bye": 7, "sos": 2, "p": [51, 51, 15, 10], "avg": 32, "ol": 5, "offRk": 17, "olg": "D", "est": 5}, {"rk": 98, "tier": 6, "name": "RJ Harvey", "team": "DEN", "pos": "RB", "posRk": 35, "bye": 10, "sos": 2, "p": [null, null, null, 19], "avg": 19, "ol": 8, "offRk": 11, "olg": "A", "est": 6}, {"rk": 99, "tier": 6, "name": "Jordan Mason", "team": "MIN", "pos": "RB", "posRk": 36, "bye": 6, "sos": 4, "p": [null, null, 3, 10], "avg": 6, "ol": 6, "offRk": 20, "olg": "C", "est": 5}, {"rk": 100, "tier": 6, "name": "Jaxson Dart", "team": "NYG", "pos": "QB", "posRk": 13, "bye": 8, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 21, "olg": "C", "est": 2}, {"rk": 101, "tier": 6, "name": "Jacory Croskey-Merritt", "team": "WAS", "pos": "RB", "posRk": 37, "bye": 7, "sos": 4, "p": [null, null, null, 10], "avg": 10, "ol": 5, "offRk": 17, "olg": "D", "est": 4}, {"rk": 102, "tier": 6, "name": "Wan'Dale Robinson", "team": "TEN", "pos": "WR", "posRk": 43, "bye": 9, "sos": 3, "p": [null, null, null, 1], "avg": 1, "ol": 5, "offRk": 29, "olg": "D", "est": 5}, {"rk": 103, "tier": 6, "name": "Patrick Mahomes II", "team": "KC", "pos": "QB", "posRk": 14, "bye": 5, "sos": 2, "p": [19, 28, 13, 6], "avg": 16, "ol": 6, "offRk": 7, "olg": "C", "est": 1}, {"rk": 104, "tier": 6, "name": "Travis Kelce", "team": "KC", "pos": "TE", "posRk": 10, "bye": 5, "sos": 4, "p": [35, 49, 17, 5], "avg": 26, "ol": 6, "offRk": 7, "olg": "C", "est": 3}, {"rk": 105, "tier": 6, "name": "Jayden Reed", "team": "GB", "pos": "WR", "posRk": 44, "bye": 11, "sos": 5, "p": [null, null, 7, 2], "avg": 4, "ol": 6, "offRk": 12, "olg": "C", "est": 4}, {"rk": 106, "tier": 6, "name": "Kenny Gainwell", "team": "TB", "pos": "RB", "posRk": 38, "bye": 10, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 7, "offRk": 16, "olg": "B", "est": 4}, {"rk": 107, "tier": 6, "name": "Jordan Addison", "team": "MIN", "pos": "WR", "posRk": 45, "bye": 6, "sos": 5, "p": [null, 9, 2, 7], "avg": 6, "ol": 6, "offRk": 20, "olg": "C", "est": 4}, {"rk": 108, "tier": 6, "name": "Jared Goff", "team": "DET", "pos": "QB", "posRk": 15, "bye": 6, "sos": 5, "p": [null, 1, 1, 1], "avg": 1, "ol": 6, "offRk": 8, "olg": "C", "est": 1}, {"rk": 109, "tier": 6, "name": "Matthew Stafford", "team": "LAR", "pos": "QB", "posRk": 16, "bye": 11, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 7, "offRk": 1, "olg": "B", "est": 1}, {"rk": 110, "tier": 6, "name": "Dalton Kincaid", "team": "BUF", "pos": "TE", "posRk": 11, "bye": 7, "sos": 3, "p": [null, 2, 13, 1], "avg": 5, "ol": 7, "offRk": 2, "olg": "B", "est": 3}, {"rk": 111, "tier": 6, "name": "Kyle Monangai", "team": "CHI", "pos": "RB", "posRk": 39, "bye": 10, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 7, "offRk": 15, "olg": "B", "est": 4}, {"rk": 112, "tier": 6, "name": "Makai Lemon", "team": "PHI", "pos": "WR", "posRk": 46, "bye": 10, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 7, "offRk": 9, "olg": "B", "est": 4}, {"rk": 113, "tier": 6, "name": "Rachaad White", "team": "WAS", "pos": "RB", "posRk": 40, "bye": 7, "sos": 4, "p": [3, 17, 25, 1], "avg": 12, "ol": 5, "offRk": 17, "olg": "D", "est": 4}, {"rk": 114, "tier": 6, "name": "Jakobi Meyers", "team": "JAC", "pos": "WR", "posRk": 47, "bye": 7, "sos": 4, "p": [2, 3, 2, 6], "avg": 3, "ol": 6, "offRk": 18, "olg": "C", "est": 4}, {"rk": 115, "tier": 6, "name": "KC Concepcion", "team": "CLE", "pos": "WR", "posRk": 48, "bye": 11, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 5, "offRk": 31, "olg": "D", "est": 3}, {"rk": 116, "tier": 6, "name": "Isaiah Likely", "team": "NYG", "pos": "TE", "posRk": 12, "bye": 8, "sos": 3, "p": [null, null, null, 1], "avg": 1, "ol": 6, "offRk": 21, "olg": "C", "est": 2}, {"rk": 117, "tier": 6, "name": "De'Zhaun Stribling", "team": "SF", "pos": "WR", "posRk": 49, "bye": 8, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 7, "offRk": 4, "olg": "B", "est": 3}, {"rk": 118, "tier": 6, "name": "Dallas Goedert", "team": "PHI", "pos": "TE", "posRk": 13, "bye": 10, "sos": 4, "p": [5, 5, 1, 1], "avg": 3, "ol": 7, "offRk": 9, "olg": "B", "est": 2}, {"rk": 119, "tier": 6, "name": "Kyler Murray", "team": "MIN", "pos": "QB", "posRk": 17, "bye": 6, "sos": 5, "p": [7, 1, 10, 2], "avg": 5, "ol": 6, "offRk": 20, "olg": "C", "est": 1}, {"rk": 120, "tier": 6, "name": "Aaron Jones Sr.", "team": "MIN", "pos": "RB", "posRk": 41, "bye": 6, "sos": 4, "p": [40, 26, 10, 6], "avg": 20, "ol": 6, "offRk": 20, "olg": "C", "est": 3}, {"rk": 121, "tier": 6, "name": "Jordan Love", "team": "GB", "pos": "QB", "posRk": 18, "bye": 11, "sos": 4, "p": [null, null, 3, 1], "avg": 2, "ol": 6, "offRk": 12, "olg": "C", "est": 1}, {"rk": 122, "tier": 6, "name": "Baker Mayfield", "team": "TB", "pos": "QB", "posRk": 19, "bye": 10, "sos": 2, "p": [null, null, null, 4], "avg": 4, "ol": 7, "offRk": 16, "olg": "B", "est": 1}, {"rk": 123, "tier": 6, "name": "Chris Rodriguez Jr.", "team": "JAC", "pos": "RB", "posRk": 42, "bye": 7, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 18, "olg": "C", "est": 3}, {"rk": 124, "tier": 6, "name": "Matthew Golden", "team": "GB", "pos": "WR", "posRk": 50, "bye": 11, "sos": 5, "p": [null, null, null, 9], "avg": 9, "ol": 6, "offRk": 12, "olg": "C", "est": 3}, {"rk": 125, "tier": 6, "name": "Jake Ferguson", "team": "DAL", "pos": "TE", "posRk": 14, "bye": 14, "sos": 2, "p": [null, null, 3, 1], "avg": 2, "ol": 6, "offRk": 6, "olg": "C", "est": 1}, {"rk": 126, "tier": 6, "name": "Romeo Doubs", "team": "NE", "pos": "WR", "posRk": 51, "bye": 11, "sos": 2, "p": [1, null, 1, null], "avg": 1, "ol": 6, "offRk": 10, "olg": "C", "est": 2}, {"rk": 127, "tier": 6, "name": "Mark Andrews", "team": "BAL", "pos": "TE", "posRk": 15, "bye": 13, "sos": 4, "p": [28, 34, 8, 4], "avg": 18, "ol": 6, "offRk": 5, "olg": "C", "est": 1}, {"rk": 128, "tier": 6, "name": "Juwan Johnson", "team": "NO", "pos": "TE", "posRk": 16, "bye": 8, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 25, "olg": "C", "est": 1}, {"rk": 129, "tier": 6, "name": "Xavier Worthy", "team": "KC", "pos": "WR", "posRk": 52, "bye": 5, "sos": 2, "p": [null, null, 10, 20], "avg": 15, "ol": 6, "offRk": 7, "olg": "C", "est": 2}, {"rk": 130, "tier": 6, "name": "Tyler Allgeier", "team": "ARI", "pos": "RB", "posRk": 43, "bye": 14, "sos": 2, "p": [1, 2, 3, 1], "avg": 2, "ol": 6, "offRk": 27, "olg": "C", "est": 3}, {"rk": 131, "tier": 6, "name": "Tyler Shough", "team": "NO", "pos": "QB", "posRk": 20, "bye": 8, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 25, "olg": "C", "est": 1}, {"rk": 132, "tier": 6, "name": "Woody Marks", "team": "HOU", "pos": "RB", "posRk": 44, "bye": 8, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 5, "offRk": 24, "olg": "D", "est": 3}, {"rk": 133, "tier": 6, "name": "Jalen Coker", "team": "CAR", "pos": "WR", "posRk": 53, "bye": 5, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 30, "olg": "C", "est": 2}, {"rk": 134, "tier": 6, "name": "Khalil Shakir", "team": "BUF", "pos": "WR", "posRk": 54, "bye": 7, "sos": 4, "p": [null, null, 3, 3], "avg": 3, "ol": 7, "offRk": 2, "olg": "B", "est": 2}, {"rk": 135, "tier": 6, "name": "Malik Willis", "team": "MIA", "pos": "QB", "posRk": 21, "bye": 6, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 5, "offRk": 32, "olg": "D", "est": 1}, {"rk": 136, "tier": 6, "name": "Deebo Samuel Sr.", "team": "SF", "pos": "WR", "posRk": 55, "bye": 8, "sos": 2, "p": [37, 22, 29, 3], "avg": 23, "ol": 7, "offRk": 4, "olg": "B", "est": 2}, {"rk": 137, "tier": 7, "name": "Tyjae Spears", "team": "TEN", "pos": "RB", "posRk": 45, "bye": 9, "sos": 3, "p": [null, 1, 5, 1], "avg": 2, "ol": 5, "offRk": 29, "olg": "D", "est": 2}, {"rk": 138, "tier": 7, "name": "Jonah Coleman", "team": "DEN", "pos": "RB", "posRk": 46, "bye": 10, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 8, "offRk": 11, "olg": "A", "est": 2}, {"rk": 139, "tier": 7, "name": "Jordyn Tyson", "team": "NO", "pos": "WR", "posRk": 56, "bye": 8, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 25, "olg": "C", "est": 2}, {"rk": 140, "tier": 7, "name": "Rashid Shaheed", "team": "SEA", "pos": "WR", "posRk": 57, "bye": 11, "sos": 3, "p": [null, null, 1, 1], "avg": 1, "ol": 6, "offRk": 13, "olg": "C", "est": 2}, {"rk": 141, "tier": 7, "name": "Sam Darnold", "team": "SEA", "pos": "QB", "posRk": 22, "bye": 11, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 13, "olg": "C", "est": 1}, {"rk": 142, "tier": 7, "name": "Mike Washington Jr.", "team": "LV", "pos": "RB", "posRk": 47, "bye": 13, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 28, "olg": "C", "est": 2}, {"rk": 143, "tier": 7, "name": "Keaton Mitchell", "team": "LAC", "pos": "RB", "posRk": 48, "bye": 7, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 14, "olg": "C", "est": 2}, {"rk": 144, "tier": 7, "name": "Tank Bigsby", "team": "PHI", "pos": "RB", "posRk": 49, "bye": 10, "sos": 4, "p": [null, 3, 1, 1], "avg": 2, "ol": 7, "offRk": 9, "olg": "B", "est": 2}, {"rk": 145, "tier": 7, "name": "Dylan Sampson", "team": "CLE", "pos": "RB", "posRk": 50, "bye": 11, "sos": 3, "p": [null, null, null, 1], "avg": 1, "ol": 5, "offRk": 31, "olg": "D", "est": 2}, {"rk": 146, "tier": 7, "name": "Hunter Henry", "team": "NE", "pos": "TE", "posRk": 17, "bye": 11, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 10, "olg": "C", "est": 1}, {"rk": 147, "tier": 7, "name": "Denzel Boston", "team": "CLE", "pos": "WR", "posRk": 58, "bye": 11, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 5, "offRk": 31, "olg": "D", "est": 2}, {"rk": 148, "tier": 7, "name": "Zach Charbonnet", "team": "SEA", "pos": "RB", "posRk": 51, "bye": 11, "sos": 4, "p": [null, 6, 1, 5], "avg": 4, "ol": 6, "offRk": 13, "olg": "C", "est": 2}, {"rk": 149, "tier": 7, "name": "C.J. Stroud", "team": "HOU", "pos": "QB", "posRk": 23, "bye": 8, "sos": 4, "p": [null, null, 7, 1], "avg": 4, "ol": 5, "offRk": 24, "olg": "D", "est": 1}, {"rk": 150, "tier": 7, "name": "Tre Tucker", "team": "LV", "pos": "WR", "posRk": 59, "bye": 13, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 28, "olg": "C", "est": 2}, {"rk": 151, "tier": 7, "name": "Daniel Jones", "team": "IND", "pos": "QB", "posRk": 24, "bye": 13, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 19, "olg": "C", "est": 1}, {"rk": 152, "tier": 7, "name": "Chig Okonkwo", "team": "WAS", "pos": "TE", "posRk": 18, "bye": 7, "sos": 1, "p": [null, null, null, null], "avg": null, "ol": 5, "offRk": 17, "olg": "D", "est": 1}, {"rk": 153, "tier": 7, "name": "Dalton Schultz", "team": "HOU", "pos": "TE", "posRk": 19, "bye": 8, "sos": 4, "p": [5, 1, 1, null], "avg": 2, "ol": 5, "offRk": 24, "olg": "D", "est": 1}, {"rk": 154, "tier": 7, "name": "Brenton Strange", "team": "JAC", "pos": "TE", "posRk": 20, "bye": 7, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 18, "olg": "C", "est": 1}, {"rk": 155, "tier": 7, "name": "Adonai Mitchell", "team": "NYJ", "pos": "WR", "posRk": 60, "bye": 13, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 23, "olg": "C", "est": 1}, {"rk": 156, "tier": 7, "name": "Cam Ward", "team": "TEN", "pos": "QB", "posRk": 25, "bye": 9, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 5, "offRk": 29, "olg": "D", "est": 1}, {"rk": 157, "tier": 7, "name": "Kayshon Boutte", "team": "HOU", "pos": "WR", "posRk": 61, "bye": 8, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 5, "offRk": 24, "olg": "D", "est": 1}, {"rk": 158, "tier": 7, "name": "Braelon Allen", "team": "NYJ", "pos": "RB", "posRk": 52, "bye": 13, "sos": 3, "p": [null, null, 1, 2], "avg": 2, "ol": 6, "offRk": 23, "olg": "C", "est": 1}, {"rk": 159, "tier": 7, "name": "Josh Jacobs", "team": "GB", "pos": "RB", "posRk": 53, "bye": 11, "sos": 4, "p": [21, 43, 33, 36], "avg": 33, "ol": 6, "offRk": 12, "olg": "C", "est": 1}, {"rk": 160, "tier": 7, "name": "Alvin Kamara", "team": "NO", "pos": "RB", "posRk": 54, "bye": 8, "sos": 3, "p": [59, 12, 32, 24], "avg": 32, "ol": 6, "offRk": 25, "olg": "C", "est": 1}, {"rk": 161, "tier": 7, "name": "Jalen McMillan", "team": "TB", "pos": "WR", "posRk": 62, "bye": 10, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 7, "offRk": 16, "olg": "B", "est": 1}, {"rk": 162, "tier": 7, "name": "Emmett Johnson", "team": "KC", "pos": "RB", "posRk": 55, "bye": 5, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 7, "olg": "C", "est": 1}, {"rk": 163, "tier": 7, "name": "Dontayvion Wicks", "team": "PHI", "pos": "WR", "posRk": 63, "bye": 10, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 7, "offRk": 9, "olg": "B", "est": 1}, {"rk": 164, "tier": 7, "name": "Tyrone Tracy Jr.", "team": "NYG", "pos": "RB", "posRk": 56, "bye": 8, "sos": 4, "p": [null, null, null, 8], "avg": 8, "ol": 6, "offRk": 21, "olg": "C", "est": 1}, {"rk": 165, "tier": 7, "name": "Brian Robinson Jr.", "team": "ATL", "pos": "RB", "posRk": 57, "bye": 11, "sos": 2, "p": [4, 5, 7, 1], "avg": 4, "ol": 6, "offRk": 22, "olg": "C", "est": 1}, {"rk": 166, "tier": 7, "name": "Jerry Jeudy", "team": "CLE", "pos": "WR", "posRk": 64, "bye": 11, "sos": 3, "p": [12, 7, 1, 7], "avg": 7, "ol": 5, "offRk": 31, "olg": "D", "est": 1}, {"rk": 167, "tier": 7, "name": "Ryan Flournoy", "team": "DAL", "pos": "WR", "posRk": 65, "bye": 14, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 6, "olg": "C", "est": 1}, {"rk": 168, "tier": 7, "name": "Ray Davis", "team": "BUF", "pos": "RB", "posRk": 58, "bye": 7, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 7, "offRk": 2, "olg": "B", "est": 1}, {"rk": 169, "tier": 7, "name": "Jauan Jennings", "team": "MIN", "pos": "WR", "posRk": 66, "bye": 6, "sos": 5, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 20, "olg": "C", "est": 1}, {"rk": 170, "tier": 7, "name": "Pat Bryant", "team": "DEN", "pos": "WR", "posRk": 67, "bye": 10, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 8, "offRk": 11, "olg": "A", "est": 1}, {"rk": 171, "tier": 7, "name": "Tre' Harris", "team": "LAC", "pos": "WR", "posRk": 68, "bye": 7, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 14, "olg": "C", "est": 1}, {"rk": 172, "tier": 7, "name": "Omar Cooper Jr.", "team": "NYJ", "pos": "WR", "posRk": 69, "bye": 13, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 23, "olg": "C", "est": 1}, {"rk": 173, "tier": 7, "name": "Jalen Nailor", "team": "LV", "pos": "WR", "posRk": 70, "bye": 13, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 28, "olg": "C", "est": 1}, {"rk": 174, "tier": 7, "name": "Bryce Young", "team": "CAR", "pos": "QB", "posRk": 26, "bye": 5, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 30, "olg": "C", "est": 1}, {"rk": 175, "tier": 7, "name": "Terrance Ferguson", "team": "LAR", "pos": "TE", "posRk": 21, "bye": 11, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 7, "offRk": 1, "olg": "B", "est": 1}, {"rk": 176, "tier": 7, "name": "AJ Barner", "team": "SEA", "pos": "TE", "posRk": 22, "bye": 11, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 13, "olg": "C", "est": 1}, {"rk": 177, "tier": 8, "name": "T.J. Hockenson", "team": "MIN", "pos": "TE", "posRk": 23, "bye": 6, "sos": 4, "p": [2, 17, 2, 5], "avg": 6, "ol": 6, "offRk": 20, "olg": "C", "est": 1}, {"rk": 178, "tier": 8, "name": "Keenan Allen", "team": "IND", "pos": "WR", "posRk": 71, "bye": 13, "sos": 4, "p": [25, 34, 10, 3], "avg": 18, "ol": 6, "offRk": 19, "olg": "C", "est": 1}, {"rk": 179, "tier": 8, "name": "Malik Washington", "team": "MIA", "pos": "WR", "posRk": 72, "bye": 6, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 5, "offRk": 32, "olg": "D", "est": 1}, {"rk": 180, "tier": 8, "name": "Jaylin Noel", "team": "HOU", "pos": "WR", "posRk": 73, "bye": 8, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 5, "offRk": 24, "olg": "D", "est": 1}, {"rk": 181, "tier": 8, "name": "Houston Texans", "team": "HOU", "pos": "DST", "posRk": 1, "bye": 8, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 5, "offRk": 24, "olg": "D", "est": 2}, {"rk": 182, "tier": 8, "name": "Kenyon Sadiq", "team": "NYJ", "pos": "TE", "posRk": 24, "bye": 13, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 23, "olg": "C", "est": 1}, {"rk": 183, "tier": 8, "name": "Calvin Ridley", "team": "TEN", "pos": "WR", "posRk": 74, "bye": 9, "sos": 3, "p": [null, 38, 15, 16], "avg": 23, "ol": 5, "offRk": 29, "olg": "D", "est": 1}, {"rk": 184, "tier": 8, "name": "Kimani Vidal", "team": "LAC", "pos": "RB", "posRk": 59, "bye": 7, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 14, "olg": "C", "est": 1}, {"rk": 185, "tier": 8, "name": "Los Angeles Rams", "team": "LAR", "pos": "DST", "posRk": 2, "bye": 11, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 7, "offRk": 1, "olg": "B", "est": 1}, {"rk": 186, "tier": 8, "name": "Denver Broncos", "team": "DEN", "pos": "DST", "posRk": 3, "bye": 10, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 8, "offRk": 11, "olg": "A", "est": 1}, {"rk": 187, "tier": 8, "name": "Jacoby Brissett", "team": "ARI", "pos": "QB", "posRk": 27, "bye": 14, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 27, "olg": "C", "est": 1}, {"rk": 188, "tier": 8, "name": "Seattle Seahawks", "team": "SEA", "pos": "DST", "posRk": 4, "bye": 11, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 13, "olg": "C", "est": 1}, {"rk": 189, "tier": 8, "name": "Rashod Bateman", "team": "BAL", "pos": "WR", "posRk": 75, "bye": 13, "sos": 4, "p": [12, 1, null, 2], "avg": 5, "ol": 6, "offRk": 5, "olg": "C", "est": 1}, {"rk": 190, "tier": 8, "name": "Gunnar Helm", "team": "TEN", "pos": "TE", "posRk": 25, "bye": 9, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 5, "offRk": 29, "olg": "D", "est": 1}, {"rk": 191, "tier": 8, "name": "Malik Davis", "team": "DAL", "pos": "RB", "posRk": 60, "bye": 14, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 6, "olg": "C", "est": 1}, {"rk": 192, "tier": 8, "name": "Philadelphia Eagles", "team": "PHI", "pos": "DST", "posRk": 5, "bye": 10, "sos": 0, "p": [null, null, null, null], "avg": null, "ol": 7, "offRk": 9, "olg": "B", "est": 1}, {"rk": 193, "tier": 8, "name": "Sean Tucker", "team": "TB", "pos": "RB", "posRk": 61, "bye": 10, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 7, "offRk": 16, "olg": "B", "est": 1}, {"rk": 194, "tier": 8, "name": "Isiah Pacheco", "team": "DET", "pos": "RB", "posRk": 62, "bye": 6, "sos": 5, "p": [2, 14, 44, 19], "avg": 20, "ol": 6, "offRk": 8, "olg": "C", "est": 1}, {"rk": 195, "tier": 8, "name": "Oronde Gadsden II", "team": "LAC", "pos": "TE", "posRk": 26, "bye": 7, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 14, "olg": "C", "est": 1}, {"rk": 196, "tier": 8, "name": "Travis Hunter", "team": "JAC", "pos": "WR", "posRk": 76, "bye": 7, "sos": 4, "p": [null, null, null, 8], "avg": 8, "ol": 6, "offRk": 18, "olg": "C", "est": 1}, {"rk": 197, "tier": 8, "name": "New England Patriots", "team": "NE", "pos": "DST", "posRk": 6, "bye": 11, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 10, "olg": "C", "est": 1}, {"rk": 198, "tier": 8, "name": "Pittsburgh Steelers", "team": "PIT", "pos": "DST", "posRk": 7, "bye": 9, "sos": 5, "p": [null, null, null, null], "avg": null, "ol": 5, "offRk": 26, "olg": "D", "est": 1}, {"rk": 199, "tier": 8, "name": "Nicholas Singleton", "team": "TEN", "pos": "RB", "posRk": 63, "bye": 9, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 5, "offRk": 29, "olg": "D", "est": 1}, {"rk": 200, "tier": 8, "name": "Jacksonville Jaguars", "team": "JAC", "pos": "DST", "posRk": 8, "bye": 7, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 18, "olg": "C", "est": 1}, {"rk": 201, "tier": 8, "name": "Aaron Rodgers", "team": "PIT", "pos": "QB", "posRk": 28, "bye": 9, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 5, "offRk": 26, "olg": "D", "est": 1}, {"rk": 202, "tier": 8, "name": "Pat Freiermuth", "team": "PIT", "pos": "TE", "posRk": 27, "bye": 9, "sos": 2, "p": [2, 4, 1, null], "avg": 2, "ol": 5, "offRk": 26, "olg": "D", "est": 1}, {"rk": 203, "tier": 8, "name": "Los Angeles Chargers", "team": "LAC", "pos": "DST", "posRk": 9, "bye": 7, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 14, "olg": "C", "est": 1}, {"rk": 204, "tier": 8, "name": "Minnesota Vikings", "team": "MIN", "pos": "DST", "posRk": 10, "bye": 6, "sos": 1, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 20, "olg": "C", "est": 1}, {"rk": 205, "tier": 8, "name": "Chris Bell", "team": "MIA", "pos": "WR", "posRk": 77, "bye": 6, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 5, "offRk": 32, "olg": "D", "est": 1}, {"rk": 206, "tier": 8, "name": "Brandon Aubrey", "team": "DAL", "pos": "K", "posRk": 1, "bye": 14, "sos": 2, "p": [null, null, 2, 3], "avg": 2, "ol": 6, "offRk": 6, "olg": "C", "est": 2}, {"rk": 207, "tier": 8, "name": "Cade Otton", "team": "TB", "pos": "TE", "posRk": 28, "bye": 10, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 7, "offRk": 16, "olg": "B", "est": 1}, {"rk": 208, "tier": 8, "name": "Ja'Kobi Lane", "team": "BAL", "pos": "WR", "posRk": 78, "bye": 13, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 5, "olg": "C", "est": 1}, {"rk": 209, "tier": 8, "name": "Malachi Fields", "team": "NYG", "pos": "WR", "posRk": 79, "bye": 8, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 21, "olg": "C", "est": 1}, {"rk": 210, "tier": 8, "name": "Baltimore Ravens", "team": "BAL", "pos": "DST", "posRk": 11, "bye": 13, "sos": 5, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 5, "olg": "C", "est": 1}, {"rk": 211, "tier": 8, "name": "Zachariah Branch", "team": "ATL", "pos": "WR", "posRk": 80, "bye": 11, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 22, "olg": "C", "est": 1}, {"rk": 212, "tier": 8, "name": "Isaac TeSlaa", "team": "DET", "pos": "WR", "posRk": 81, "bye": 6, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 8, "olg": "C", "est": 1}, {"rk": 213, "tier": 8, "name": "Cameron Dicker", "team": "LAC", "pos": "K", "posRk": 2, "bye": 7, "sos": 2, "p": [null, 1, null, 1], "avg": 1, "ol": 6, "offRk": 14, "olg": "C", "est": 2}, {"rk": 214, "tier": 8, "name": "Kaytron Allen", "team": "WAS", "pos": "RB", "posRk": 64, "bye": 7, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 5, "offRk": 17, "olg": "D", "est": 1}, {"rk": 215, "tier": 8, "name": "Cooper Kupp", "team": "SEA", "pos": "WR", "posRk": 82, "bye": 11, "sos": 3, "p": [56, 38, 37, 3], "avg": 34, "ol": 6, "offRk": 13, "olg": "C", "est": 1}, {"rk": 216, "tier": 8, "name": "Kansas City Chiefs", "team": "KC", "pos": "DST", "posRk": 12, "bye": 5, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 7, "olg": "C", "est": 1}, {"rk": 217, "tier": 8, "name": "Kaelon Black", "team": "SF", "pos": "RB", "posRk": 65, "bye": 8, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 7, "offRk": 4, "olg": "B", "est": 1}, {"rk": 218, "tier": 8, "name": "Geno Smith", "team": "NYJ", "pos": "QB", "posRk": 29, "bye": 13, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 23, "olg": "C", "est": 1}, {"rk": 219, "tier": 8, "name": "Jaylen Wright", "team": "MIA", "pos": "RB", "posRk": 66, "bye": 6, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 5, "offRk": 32, "olg": "D", "est": 1}, {"rk": 220, "tier": 8, "name": "Ka'imi Fairbairn", "team": "HOU", "pos": "K", "posRk": 3, "bye": 8, "sos": 2, "p": [null, null, 1, 1], "avg": 1, "ol": 5, "offRk": 24, "olg": "D", "est": 1}, {"rk": 221, "tier": 8, "name": "George Holani", "team": "SEA", "pos": "RB", "posRk": 67, "bye": 11, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 13, "olg": "C", "est": 1}, {"rk": 222, "tier": 8, "name": "Najee Harris", "team": "NYG", "pos": "RB", "posRk": 68, "bye": 8, "sos": 4, "p": [56, 24, 11, 2], "avg": 23, "ol": 6, "offRk": 21, "olg": "C", "est": 1}, {"rk": 223, "tier": 8, "name": "Darnell Mooney", "team": "NYG", "pos": "WR", "posRk": 83, "bye": 8, "sos": 4, "p": [9, 1, 2, 2], "avg": 4, "ol": 6, "offRk": 21, "olg": "C", "est": 1}, {"rk": 224, "tier": 8, "name": "Cam Little", "team": "JAC", "pos": "K", "posRk": 4, "bye": 7, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 18, "olg": "C", "est": 1}, {"rk": 225, "tier": 8, "name": "Jason Myers", "team": "SEA", "pos": "K", "posRk": 5, "bye": 11, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 13, "olg": "C", "est": 1}, {"rk": 226, "tier": 8, "name": "Justice Hill", "team": "BAL", "pos": "RB", "posRk": 69, "bye": 13, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 5, "olg": "C", "est": 1}, {"rk": 227, "tier": 8, "name": "Green Bay Packers", "team": "GB", "pos": "DST", "posRk": 13, "bye": 11, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 12, "olg": "C", "est": 1}, {"rk": 228, "tier": 8, "name": "Germie Bernard", "team": "PIT", "pos": "WR", "posRk": 84, "bye": 9, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 5, "offRk": 26, "olg": "D", "est": 1}, {"rk": 229, "tier": 8, "name": "Jake Bates", "team": "DET", "pos": "K", "posRk": 6, "bye": 6, "sos": 5, "p": [null, null, 1, 1], "avg": 1, "ol": 6, "offRk": 8, "olg": "C", "est": 1}, {"rk": 230, "tier": 8, "name": "Eddy Pineiro", "team": "SF", "pos": "K", "posRk": 7, "bye": 8, "sos": 5, "p": [null, null, null, null], "avg": null, "ol": 7, "offRk": 4, "olg": "B", "est": 1}, {"rk": 231, "tier": 8, "name": "James Conner", "team": "ARI", "pos": "RB", "posRk": 70, "bye": 14, "sos": 2, "p": [31, 11, 14, 22], "avg": 20, "ol": 6, "offRk": 27, "olg": "C", "est": 1}, {"rk": 232, "tier": 8, "name": "Tyler Loop", "team": "BAL", "pos": "K", "posRk": 8, "bye": 13, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 5, "olg": "C", "est": 1}, {"rk": 233, "tier": 8, "name": "Emanuel Wilson", "team": "SEA", "pos": "RB", "posRk": 71, "bye": 11, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 13, "olg": "C", "est": 1}, {"rk": 234, "tier": 8, "name": "Devaughn Vele", "team": "NO", "pos": "WR", "posRk": 85, "bye": 8, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 25, "olg": "C", "est": 1}, {"rk": 235, "tier": 8, "name": "Troy Franklin", "team": "DEN", "pos": "WR", "posRk": 86, "bye": 10, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 8, "offRk": 11, "olg": "A", "est": 1}, {"rk": 236, "tier": 8, "name": "Detroit Lions", "team": "DET", "pos": "DST", "posRk": 14, "bye": 6, "sos": 5, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 8, "olg": "C", "est": 1}, {"rk": 237, "tier": 8, "name": "Chris Brooks", "team": "GB", "pos": "RB", "posRk": 72, "bye": 11, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 12, "olg": "C", "est": 1}, {"rk": 238, "tier": 8, "name": "Ted Hurst III", "team": "TB", "pos": "WR", "posRk": 87, "bye": 10, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 7, "offRk": 16, "olg": "B", "est": 1}, {"rk": 239, "tier": 8, "name": "Buffalo Bills", "team": "BUF", "pos": "DST", "posRk": 15, "bye": 7, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 7, "offRk": 2, "olg": "B", "est": 1}, {"rk": 240, "tier": 8, "name": "Samaje Perine", "team": "CIN", "pos": "RB", "posRk": 73, "bye": 6, "sos": 2, "p": [null, 3, 1, null], "avg": 2, "ol": 5, "offRk": 3, "olg": "D", "est": 1}, {"rk": 241, "tier": 9, "name": "Kaleb Johnson", "team": "GB", "pos": "RB", "posRk": 74, "bye": 11, "sos": 4, "p": [null, null, null, 6], "avg": 6, "ol": 6, "offRk": 12, "olg": "C", "est": 1}, {"rk": 242, "tier": 9, "name": "Evan Engram", "team": "DEN", "pos": "TE", "posRk": 29, "bye": 10, "sos": 4, "p": [null, 4, 6, 3], "avg": 4, "ol": 8, "offRk": 11, "olg": "A", "est": 1}, {"rk": 243, "tier": 9, "name": "Harrison Mevis", "team": "LAR", "pos": "K", "posRk": 9, "bye": 11, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 7, "offRk": 1, "olg": "B", "est": 1}, {"rk": 244, "tier": 9, "name": "Demond Claiborne", "team": "MIN", "pos": "RB", "posRk": 75, "bye": 6, "sos": 4, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 20, "olg": "C", "est": 1}, {"rk": 245, "tier": 9, "name": "Cairo Santos", "team": "CHI", "pos": "K", "posRk": 10, "bye": 10, "sos": 0, "p": [null, null, null, null], "avg": null, "ol": 7, "offRk": 15, "olg": "B", "est": 1}, {"rk": 246, "tier": 9, "name": "Keon Coleman", "team": "BUF", "pos": "WR", "posRk": 88, "bye": 7, "sos": 4, "p": [null, null, 5, 5], "avg": 5, "ol": 7, "offRk": 2, "olg": "B", "est": 1}, {"rk": 247, "tier": 9, "name": "Fernando Mendoza", "team": "LV", "pos": "QB", "posRk": 30, "bye": 13, "sos": 1, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 28, "olg": "C", "est": 1}, {"rk": 248, "tier": 9, "name": "Tank Dell", "team": "HOU", "pos": "WR", "posRk": 89, "bye": 8, "sos": 3, "p": [null, null, null, null], "avg": null, "ol": 5, "offRk": 24, "olg": "D", "est": 1}, {"rk": 249, "tier": 9, "name": "Jack Bech", "team": "LV", "pos": "WR", "posRk": 90, "bye": 13, "sos": 2, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 28, "olg": "C", "est": 1}, {"rk": 250, "tier": 9, "name": "Andy Borregales", "team": "NE", "pos": "K", "posRk": 11, "bye": 11, "sos": 1, "p": [null, null, null, null], "avg": null, "ol": 6, "offRk": 10, "olg": "C", "est": 1}];
+const KEY = 'ff2026_board_v2';
+const POSITIONS = ['ALL','QB','RB','WR','TE','K','DST'];
+const POS_COLOR = {QB:'#e0777d',RB:'#6fbf8a',WR:'#6fa8d4',TE:'#d4a24c',K:'#a89bd4',DST:'#8d9a92'};
+const GRADE_COLOR = {A:'#6fbf8a', B:'#8fbf6a', C:'#b8a94e', D:'#d9695f'};
+const sosColor = s => s==null ? '#3f5b4c' : (['#d9695f','#d9695f','#c98a52','#b8a94e','#8fbf6a','#6fbf8a'][s]||'#8d9a92');
+const offColor = r => r==null ? '#3f5b4c' : (r<=8 ? '#6fbf8a' : r<=16 ? '#b8a94e' : r<=24 ? '#c98a52' : '#d9695f');
+const $ = id => document.getElementById(id);
+const NCOLS = 18;
+
+let state = {drafted:{}, notes:{}, stars:{}, alloc:{}, picks:{}};
+let canSave = true;
+try {
+  const raw = localStorage.getItem(KEY);
+  if (raw) state = Object.assign(state, JSON.parse(raw));
+} catch(e) { canSave = false; }
+if (!state.stars) state.stars = {};
+if (!state.notes) state.notes = {};
+if (!state.drafted) state.drafted = {};
+
+let pos='ALL', q='', sortKey='rk', sortDir=1, hideDrafted=true, targetsOnly=false, openNote=null;
+
+function save() {
+  if (!canSave) return;
+  try {
+    localStorage.setItem(KEY, JSON.stringify(state));
+    const n=$('saveNote');
+    if(n){ n.textContent='Saved ✓'; clearTimeout(window._t);
+           window._t=setTimeout(()=>{ n.textContent='auto-save on'; },1100); }
+  } catch(e) {
+    canSave=false;
+    const n=$('saveNote'); if(n){ n.textContent='not saving — export!'; n.classList.add('err'); }
+  }
+}
+
+function tabs() {
+  $('tabs').innerHTML = POSITIONS.map(p=>`<button class="tab ${p===pos?'active':''}" data-p="${p}">${p}</button>`).join('');
+  $('tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{pos=b.dataset.p;tabs();render();});
+}
+
+function val(p, k) {
+  if (/^p[0-3]$/.test(k)) return p.p[+k[1]];
+  return p[k];
+}
+
+function rows() {
+  let l = PLAYERS.filter(p=>pos==='ALL'||p.pos===pos);
+  if (q.trim()) { const s=q.trim().toLowerCase();
+    l = l.filter(p=>p.name.toLowerCase().includes(s)||(p.team||'').toLowerCase().includes(s)); }
+  if (hideDrafted) l = l.filter(p=>!state.drafted[p.rk]);
+  if (targetsOnly) l = l.filter(p=>state.stars[p.rk]);
+  return l.slice().sort((a,b)=>{
+    const av=val(a,sortKey), bv=val(b,sortKey);
+    if(av==null&&bv==null) return a.rk-b.rk;
+    if(av==null) return 1; if(bv==null) return -1;
+    if(typeof av==='string') return sortDir*av.localeCompare(bv);
+    return sortDir*(av-bv) || a.rk-b.rk;
+  });
+}
+
+function stats() {
+  const pool = PLAYERS.filter(p=>pos==='ALL'||p.pos===pos);
+  const left = pool.filter(p=>!state.drafted[p.rk]).length;
+  const gone = pool.length - left;
+  const starred = pool.filter(p=>state.stars[p.rk] && !state.drafted[p.rk]).length;
+  $('stats').innerHTML =
+    `<span class="stat">Available <b>${left}</b></span>`+
+    `<span class="stat">Drafted <b>${gone}</b></span>`+
+    `<span class="stat">Targets left <b class="gold">${starred}</b></span>`;
+}
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function autoGrow(el){ el.style.height='auto'; el.style.height=(el.scrollHeight+2)+'px'; }
+
+function render() {
+  const list = rows();
+  const money = v => v==null ? '<span class="muted">—</span>' : '$'+v;
+  const showTiers = (sortKey==='rk'||sortKey==='tier') && sortDir===1;
+  let lastTier = null;
+  let html = '';
+
+  list.forEach(p=>{
+    if (showTiers && p.tier != null && p.tier !== lastTier) {
+      html += `<tr class="tierbreak"><td colspan="${NCOLS}">Tier ${p.tier}</td></tr>`;
+      lastTier = p.tier;
+    }
+    const d = !!state.drafted[p.rk];
+    const st = !!state.stars[p.rk];
+    const note = (state.notes[p.rk]||'').trim();
+    html += `<tr class="${d?'drafted':''}">
+      <td class="num act"><button class="star ${st?'on':''}" data-star="${p.rk}">${st?'★':'☆'}</button></td>
+      <td class="num">${p.rk}</td>
+      <td class="num">${p.tier ?? ''}</td>
+      <td class="name">${esc(p.name)}</td>
+      <td class="num">${p.team ?? ''}</td>
+      <td class="num"><span class="pos-pill" style="background:${POS_COLOR[p.pos]}">${p.pos}</span></td>
+      <td class="num">${p.posRk ?? ''}</td>
+      <td class="num">${p.bye ?? ''}</td>
+      <td class="num">${p.sos==null?'<span class="muted">—</span>':`<span class="sos-dot" style="background:${sosColor(p.sos)}">${p.sos}</span>`}</td>
+      <td class="num">${money(p.p[0])}</td>
+      <td class="num">${money(p.p[1])}</td>
+      <td class="num">${money(p.p[2])}</td>
+      <td class="num">${money(p.p[3])}</td>
+      <td class="avg">${p.avg==null?'<span class="muted">—</span>':'$'+p.avg}</td>
+      <td class="num">${p.olg?`<span class="grade" style="background:${GRADE_COLOR[p.olg]}">${p.olg}</span>`:'<span class="muted">—</span>'}</td>
+      <td class="num">${p.offRk==null?'<span class="muted">—</span>':`<b style="color:${offColor(p.offRk)}">${p.offRk}</b>`}</td>
+      <td class="note-cell"><button class="notebtn ${note?'has':'empty'}" data-note="${p.rk}">${note?'✎ '+esc(note.replace(/\s+/g,' ')):'add note…'}</button></td>
+      <td class="act"><button class="mark" data-mark="${p.rk}">${d?'Undo':'Draft'}</button></td>
+    </tr>`;
+    if (openNote === p.rk) {
+      html += `<tr class="noterow"><td colspan="${NCOLS}">
+        <div class="nl">Notes — ${esc(p.name)}</div>
+        <textarea class="note" data-ta="${p.rk}" placeholder="Type your notes here…">${esc(state.notes[p.rk]??'')}</textarea>
+      </td></tr>`;
+    }
+  });
+
+  $('tbody').innerHTML = html;
+
+  $('tbody').querySelectorAll('[data-mark]').forEach(b=>b.onclick=()=>{
+    const rk=b.dataset.mark;
+    state.drafted[rk] ? delete state.drafted[rk] : state.drafted[rk]=1;
+    save(); render();
+  });
+  $('tbody').querySelectorAll('[data-star]').forEach(b=>b.onclick=()=>{
+    const rk=b.dataset.star;
+    state.stars[rk] ? delete state.stars[rk] : state.stars[rk]=1;
+    save(); render();
+  });
+  $('tbody').querySelectorAll('[data-note]').forEach(b=>b.onclick=()=>{
+    const rk=+b.dataset.note;
+    openNote = openNote===rk ? null : rk;
+    render();
+    const ta = $('tbody').querySelector('[data-ta]');
+    if (ta) { autoGrow(ta); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+  });
+  $('tbody').querySelectorAll('[data-ta]').forEach(t=>{
+    autoGrow(t);
+    t.oninput=()=>{ state.notes[t.dataset.ta]=t.value; autoGrow(t); };
+    t.onblur=()=>{ save(); stats(); };
+  });
+
+  document.querySelectorAll('thead th[data-sort]').forEach(th=>th.classList.toggle('sorted', th.dataset.sort===sortKey));
+  stats();
+}
+
+document.querySelectorAll('thead th[data-sort]').forEach(th=>th.onclick=()=>{
+  const k=th.dataset.sort;
+  if(sortKey===k) sortDir*=-1;
+  else { sortKey=k; sortDir = ['rk','name','tier','posRk','offRk','bye'].includes(k) ? 1 : -1; }
+  render();
+});
+$('search').oninput = e => { q=e.target.value; render(); };
+$('hideDrafted').onchange = e => { hideDrafted=e.target.checked; render(); };
+$('targetsBtn').onclick = () => {
+  targetsOnly=!targetsOnly;
+  $('targetsBtn').classList.toggle('on',targetsOnly);
+  render();
+};
+$('exportBtn').onclick = () => {
+  const b=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(b); a.download='draft-backup.json'; a.click();
+};
+$('importBtn').onclick = () => $('importFile').click();
+$('importFile').onchange = e => {
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{
+    const s=JSON.parse(r.result);
+    state={drafted:s.drafted||{}, notes:s.notes||{}, stars:s.stars||{}, alloc:s.alloc||{}, picks:s.picks||{}};
+    save(); render();
+  }catch(err){ alert('Could not read that backup file.'); } };
+  r.readAsText(f);
+};
+let resetArmed = false, resetTimer = null;
+function disarmReset(){
+  resetArmed = false; clearTimeout(resetTimer);
+  const b=$('resetBtn'); if(b){ b.textContent='Reset'; b.classList.remove('armed'); }
+}
+$('resetBtn').onclick = () => {
+  const b = $('resetBtn');
+  if(!resetArmed){
+    resetArmed = true;
+    b.textContent = 'Erase everything?';
+    b.classList.add('armed');
+    resetTimer = setTimeout(disarmReset, 4000);
+    return;
+  }
+  disarmReset();
+  state={drafted:{},notes:{},stars:{},alloc:{},picks:{}};
+  activeSlot='RB1';
+  save(); render(); renderSim();
+};
+
+
+/* ================= BUDGET SIMULATOR ================= */
+const SLOTS = [
+  {id:'QB',  label:'QB',   pos:['QB']},
+  {id:'RB1', label:'RB1',  pos:['RB']},
+  {id:'RB2', label:'RB2',  pos:['RB']},
+  {id:'WR1', label:'WR1',  pos:['WR']},
+  {id:'WR2', label:'WR2',  pos:['WR']},
+  {id:'TE',  label:'TE',   pos:['TE']},
+  {id:'FLX1',label:'FLEX1',pos:['RB','WR','TE']},
+  {id:'FLX2',label:'FLEX2',pos:['RB','WR','TE']},
+  {id:'K',   label:'K',    pos:['K']},
+  {id:'DST', label:'D/ST', pos:['DST']},
+  {id:'BN1', label:'Bench 1', pos:['QB','RB','WR','TE']},
+  {id:'BN2', label:'Bench 2', pos:['QB','RB','WR','TE']},
+  {id:'BN3', label:'Bench 3', pos:['QB','RB','WR','TE']},
+  {id:'BN4', label:'Bench 4', pos:['QB','RB','WR','TE']},
+  {id:'BN5', label:'Bench 5', pos:['QB','RB','WR','TE']},
+  {id:'BN6', label:'Bench 6', pos:['QB','RB','WR','TE']},
+];
+const BUDGET = 200;
+if(!state.alloc) state.alloc = {};
+if(!state.picks) state.picks = {};
+let activeSlot = 'RB1';
+
+function allocTotal(){
+  return SLOTS.reduce((s,sl)=>s + (Number(state.alloc[sl.id])||0), 0);
+}
+function filledCount(){ return SLOTS.filter(sl=>state.picks[sl.id]).length; }
+function openSlots(){ return SLOTS.filter(sl=>!state.picks[sl.id]); }
+/* Money you can actually put on ONE open slot, holding $1 back for every OTHER open slot. */
+function maxForSlot(slotId){
+  const spent = allocTotal();
+  const rem = BUDGET - spent;
+  const others = openSlots().filter(sl=>sl.id!==slotId).length;
+  const cur = Number(state.alloc[slotId])||0;
+  return Math.max(rem + cur - others, 1);
+}
+function budgetBar(){
+  const spent = allocTotal();
+  const rem = BUDGET - spent;
+  const open = openSlots().length;
+  const reserve = open;                 // $1 held for each unfilled slot
+  const spendable = Math.max(rem - reserve, 0);
+  $('budgetbar').innerHTML =
+    `<span class="bb">Budget<b>$${BUDGET}</b></span>`+
+    `<span class="bb">Allocated<b class="gold">$${spent}</b></span>`+
+    `<span class="bb">Remaining<b class="${rem<0?'red':'green'}">$${rem}</b></span>`+
+    `<span class="bb">Filled<b>${filledCount()}/${SLOTS.length}</b></span>`+
+    `<span class="bb">Reserved ($1 × ${open} open)<b>$${reserve}</b></span>`+
+    `<span class="bb">Free to spend<b class="${spendable<=0?'red':'gold'}">$${spendable}</b></span>`+
+    (rem<0?`<span class="bb" style="color:var(--red)">Over budget by $${-rem}</span>`:'');
+}
+function slotGrid(){
+  $('slotgrid').innerHTML = SLOTS.map(sl=>{
+    const v = state.alloc[sl.id] ?? '';
+    const pick = state.picks[sl.id];
+    return `<div class="slot ${activeSlot===sl.id?'active':''} ${pick?'locked':''}" data-slot="${sl.id}">
+      <div class="sl">${sl.label}</div>
+      <div class="sv"><input type="number" min="0" inputmode="numeric" placeholder="$"
+        data-alloc="${sl.id}" value="${v}" ${pick?'readonly':''}></div>
+      ${pick?`<div class="filled">✓ ${esc(pick.name)} <button class="clr" data-clear="${sl.id}">✕</button></div>`:''}
+    </div>`;
+  }).join('');
+  $('slotgrid').querySelectorAll('[data-slot]').forEach(el=>el.onclick=e=>{
+    if(e.target.matches('input') || e.target.matches('[data-clear]')) return;
+    activeSlot = el.dataset.slot; renderSim();
+  });
+  $('slotgrid').querySelectorAll('[data-clear]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    const id=b.dataset.clear, pk=state.picks[id];
+    if(pk && pk.rk!=null) delete state.drafted[pk.rk];   // put him back on the board
+    delete state.picks[id]; delete state.alloc[id];
+    save(); renderSim(); render();
+  });
+  $('slotgrid').querySelectorAll('[data-alloc]').forEach(i=>{
+    i.onfocus = ()=>{ activeSlot = i.dataset.alloc; };
+    i.oninput = ()=>{
+      const id=i.dataset.alloc;
+      if(i.value==='') delete state.alloc[id]; else state.alloc[id]=Number(i.value);
+      budgetBar(); candidates();
+    };
+    i.onblur = ()=>{ save(); renderSim(); };
+  });
+}
+function candidates(){
+  const sl = SLOTS.find(s=>s.id===activeSlot);
+  const pick = state.picks[activeSlot];
+  if(pick){
+    $('simResults').innerHTML = `<div class="simhead">${sl.label} — locked</div>
+      <div class="hint"><b style="color:var(--green)">${esc(pick.name)}</b> assigned at
+      <b style="color:var(--gold)">$${pick.price}</b>. He's off the draft board.
+      Tap the ✕ on the slot to undo and put him back.</div>`;
+    return;
+  }
+  const amt = Number(state.alloc[activeSlot])||0;
+  const cap = maxForSlot(activeSlot);
+  if(!amt){
+    $('simResults').innerHTML = `<div class="simhead">${sl.label}</div>
+      <div class="hint">Enter a dollar amount for ${sl.label} to see who fits.
+      Most you can spend here is <b style="color:var(--gold)">$${cap}</b>
+      (holds $1 for each other open slot).</div>`;
+    return;
+  }
+  const over = amt > cap;
+  const win = Math.max(4, Math.round(amt*0.14));
+  const lo = amt-win, hi = amt+win;
+  let list = PLAYERS.filter(p=>sl.pos.includes(p.pos) && !state.drafted[p.rk] && p.est>=lo && p.est<=hi);
+  list.sort((a,b)=>b.est-a.est || a.rk-b.rk);
+  $('simResults').innerHTML =
+    (over?`<div class="hint" style="color:var(--red)">⚠ $${amt} leaves less than $1 for every other
+      open slot. Max here is $${cap}.</div>`:'') +
+    `<div class="simhead">${sl.label} — $${amt} &nbsp;<span style="color:var(--dim);font-size:11px">
+      showing $${Math.max(lo,1)}–$${hi} · ${list.length} available</span></div>` +
+    (list.length? list.map(p=>`<div class="cand">
+        <span class="pos-pill" style="background:${POS_COLOR[p.pos]}">${p.pos}${p.posRk??''}</span>
+        <span class="cn">${esc(p.name)} <span style="color:var(--dim);font-size:11px">${p.team}</span>${state.stars[p.rk]?' <span style="color:var(--gold)">★</span>':''}</span>
+        <span style="font-size:10.5px;color:var(--muted)">avg ${p.avg==null?'—':'$'+p.avg}</span>
+        <span class="ce">$${p.est}</span>
+        <button class="mark" data-pick="${p.rk}">Assign</button>
+      </div>`).join('')
+      : `<div class="hint">No available players project in that range for ${sl.label}. Try a different amount.</div>`);
+  $('simResults').querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{
+    const p = PLAYERS.find(x=>x.rk===+b.dataset.pick);
+    state.picks[activeSlot] = {rk:p.rk, name:p.name, price:p.est};
+    state.alloc[activeSlot] = p.est;      // allocation becomes the player's own value
+    state.drafted[p.rk] = 1;              // remove him from the draft board
+    save(); renderSim(); render();
+  });
+}
+function clearAllSlots(){
+  SLOTS.forEach(sl=>{
+    const pk = state.picks[sl.id];
+    if(pk && pk.rk!=null) delete state.drafted[pk.rk];   // back on the board
+    delete state.picks[sl.id];
+    delete state.alloc[sl.id];
+  });
+  activeSlot='RB1';
+  save(); renderSim(); render();
+}
+function renderSim(){ budgetBar(); slotGrid(); candidates(); }
+let clearArmed = false, clearTimer = null;
+function disarmClear(){
+  clearArmed = false; clearTimeout(clearTimer);
+  const b=$('clearSlots'); if(b){ b.textContent='Clear all'; b.classList.remove('armed'); }
+}
+$('clearSlots').onclick = ()=>{
+  const b = $('clearSlots');
+  if(!clearArmed){
+    clearArmed = true;
+    b.textContent = 'Tap to confirm';
+    b.classList.add('armed');
+    clearTimer = setTimeout(disarmClear, 4000);
+    return;
+  }
+  disarmClear();
+  clearAllSlots();
+};
+
+$('navBoard').onclick = ()=>{
+  $('viewBoard').style.display=''; $('viewSim').style.display='none';
+  $('navBoard').classList.add('active'); $('navSim').classList.remove('active');
+};
+$('navSim').onclick = ()=>{
+  $('viewBoard').style.display='none'; $('viewSim').style.display='';
+  $('navSim').classList.add('active'); $('navBoard').classList.remove('active');
+  renderSim();
+};
+
+function boot(){
+  try {
+    if(!Array.isArray(PLAYERS)||!PLAYERS.length) throw new Error('Player data missing — the file may have downloaded incompletely.');
+    tabs(); render();
+    if(!canSave){ const n=$('saveNote'); n.textContent='not saving — export!'; n.classList.add('err'); }
+  } catch(err){
+    const d=$('diag'); d.style.display='block';
+    d.innerHTML='<strong>Something went wrong loading the board.</strong><br>'+String(err.message||err)+
+      '<br><br>Players found: <strong>'+(Array.isArray(PLAYERS)?PLAYERS.length:'none')+'</strong> (should be 250).';
+    console.error(err);
+  }
+}
+boot();
+</script>
+</body>
+</html>
